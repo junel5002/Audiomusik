@@ -1,135 +1,97 @@
-// Initialize variables
-let currentMusic = 0;
-
-const music = document.querySelector('#audio');
-const seekBar = document.querySelector('.seek-bar');
-const songName = document.querySelector('.music-name');
+// Get elements from DOM
+const audio = document.getElementById('audio');
+const musicName = document.querySelector('.music-name');
 const artistName = document.querySelector('.artist-name');
 const disk = document.querySelector('.disk');
-const currentTime = document.querySelector('.current-time');
-const musicDuration = document.querySelector('.song-duration');
+const seekBar = document.querySelector('.seek-bar');
+const currentTimeElem = document.querySelector('.current-time');
+const songDurationElem = document.querySelector('.song-duration');
 const playBtn = document.querySelector('.play-btn');
-const forwardBtn = document.querySelector('forward-btn');
 const backwardBtn = document.querySelector('.backward-btn');
+const forwardBtn = document.querySelector('.forward-btn');
 
-// Toggle play/pause when play button is clicked
-playBtn.addEventListener('click', () => {
-    if (music.paused) {
-        music.play();
-    } else {
-        music.pause();
-    }
-    playBtn.classList.toggle('pause');
-    disk.classList.toggle('play');
-});
+// Initialize song index
+let currentSongIndex = 0;
+let isPlaying = false;
 
-// Function to set up and play music
-const setMusic = (i) => {
-    seekBar.value = 0; // Reset seek bar to 0
-    currentMusic = i; // Set current song index
-    let song = songs[currentMusic]; // Get song object from songs array
+// Load the initial song
+function loadSong(songIndex) {
+    const song = songs[songIndex];
+    audio.src = song.path;
+    musicName.textContent = song.name;
+    artistName.textContent = song.artist;
+    disk.style.backgroundImage = `url(${song.cover})`;
 
-    // Update UI with song details
-    music.src = song.path;
-    songName.innerHTML = song.name;
-    artistName.innerHTML = song.artist;
-    disk.style.backgroundImage = `url('${song.cover}')`;
+    // Set seekBar to zero
+    seekBar.value = 0;
+    currentTimeElem.textContent = '00:00';
 
-    currentTime.innerHTML = '00:00'; // Reset current time display
-
-    // Wait until the metadata is loaded to set the song duration
-    music.addEventListener('loadedmetadata', () => {
-        seekBar.max = music.duration;
-        musicDuration.innerHTML = formatTime(music.duration);
+    // Update duration after metadata is loaded
+    audio.addEventListener('loadedmetadata', () => {
+        const duration = formatTime(audio.duration);
+        songDurationElem.textContent = duration;
+        seekBar.max = audio.duration;
     });
-};
-
-// Function to format time (in seconds) to MM:SS format
-const formatTime = (time) => {
-    let min = Math.floor(time / 60);
-    let sec = Math.floor(time % 60);
-
-    if (min < 10) {
-        min = `0${min}`;
-    }
-    if (sec < 10) {
-        sec = `0${sec}`;
-    }
-
-    return `${min}:${sec}`;
-};
-
-// Update the seek bar and current time during playback
-music.addEventListener('timeupdate', () => {
-    seekBar.value = music.currentTime;
-    currentTime.innerHTML = formatTime(music.currentTime);
-});
-
-// Change the song's current time based on the seek bar input
-seekBar.addEventListener('input', () => {
-    music.currentTime = seekBar.value;
-});
-
-// Play the next song when forward button is clicked
-forwardBtn.addEventListener('click', () => {
-    if (currentMusic < songs.length - 1) {
-        currentMusic++;
-    } else {
-        currentMusic = 0; // Loop back to the first song
-    }
-    setMusic(currentMusic);
-    music.play();
-    playBtn.classList.add('pause');
-    disk.classList.add('play');
-});
-
-// Play the previous song when backward button is clicked
-backwardBtn.addEventListener('click', () => {
-    if (currentMusic > 0) {
-        currentMusic--;
-    } else {
-        currentMusic = songs.length - 1; // Loop to the last song
-    }
-    setMusic(currentMusic);
-    music.play();
-    playBtn.classList.add('pause');
-    disk.classList.add('play');
-});
-
-// Initialize the first song on page load
-setMusic(0);
-
-setInterval(() => {
-    seekBar.value = music.currentTime;
-    currentTime.innerHTML = formatTime(music.currentTime);
-},
-500)
-
-
-seekBar.addEventListener('change', () => {
-    music.currentTime = seekBar.value;
 }
-)
 
-forwardBtn.addEventListener('click', () => {
-    if(currentMusic >= songs.length - 1){
-        currentMusic = 0;
-    } else{
-        currentMusic++;
+// Play or Pause the song
+function togglePlayPause() {
+    if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
+        playBtn.classList.add('pause');
+        disk.classList.remove('play');
+    } else {
+        audio.play();
+        isPlaying = true;
+        playBtn.classList.remove('pause');
+        disk.classList.add('play');
     }
-    setMusic(currentMusic);
-    playBtn.click();
-})
+}
 
+// Format time in mm:ss format
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes < 10 ? '0' : ''}${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+}
 
+// Update seekBar and current time during song playback
+audio.addEventListener('timeupdate', () => {
+    seekBar.value = audio.currentTime;
+    currentTimeElem.textContent = formatTime(audio.currentTime);
+});
 
+// Seek to the selected time in the song
+seekBar.addEventListener('input', () => {
+    audio.currentTime = seekBar.value;
+});
 
-backwardBtn.addEventListener('click', () => {
-    if(currentMusic <= 0){
-        currentMusic = songs.length - 1;
-    } else{
-        currentMusic--;
+// Play the next song
+function nextSong() {
+    currentSongIndex = (currentSongIndex + 1) % songs.length;
+    loadSong(currentSongIndex);
+    if (isPlaying) {
+        audio.play();
     }
-    setMusic(currentMusic);
-    playBtn.click();
-})
+}
+
+// Play the previous song
+function prevSong() {
+    currentSongIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+    loadSong(currentSongIndex);
+    if (isPlaying) {
+        audio.play();
+    }
+}
+
+// Event listeners for controls
+playBtn.addEventListener('click', togglePlayPause);
+forwardBtn.addEventListener('click', nextSong);
+backwardBtn.addEventListener('click', prevSong);
+
+// Auto-play the next song when the current one ends
+audio.addEventListener('ended', nextSong);
+
+// Load the first song initially
+loadSong(currentSongIndex);
